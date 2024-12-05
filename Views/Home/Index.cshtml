@@ -1,0 +1,92 @@
+﻿@{
+    ViewData["Title"] = "QR Code Scanner";
+}
+
+<h1>QR Code Scanner</h1>
+
+<!-- Scanner Container -->
+<div id="reader" style="width: 300px; display: none;"></div>
+<p id="result" style="margin-top: 20px; font-weight: bold;">Scanned QR Code Data: <span id="scannedData"></span></p>
+
+<!-- Start Scanning Button -->
+<button id="startScanBtn" class="btn btn-primary">Start Scanning</button>
+
+<!-- Upload Image Option -->
+<div style="margin-top: 20px;">
+    <label for="qrFileInput" class="btn btn-secondary">Upload QR Code Image</label>
+    <input type="file" id="qrFileInput" style="display: none;" accept="image/*">
+</div>
+
+<script src="https://unpkg.com/html5-qrcode/minified/html5-qrcode.min.js"></script>
+<script>
+    let html5QrCode;
+    const startScanBtn = document.getElementById("startScanBtn");
+    const qrFileInput = document.getElementById("qrFileInput");
+
+    // Function to start the QR code scanner
+    function startScanner() {
+        const qrCodeSuccessCallback = (decodedText) => {
+            console.log("QR code decoded successfully:", decodedText);
+            document.getElementById("scannedData").innerText = decodedText;
+        };
+
+        html5QrCode = new Html5Qrcode("reader");
+
+        html5QrCode.start(
+            { facingMode: "environment" },
+            {
+                fps: 10,
+                qrbox: { width: 250, height: 250 },
+            },
+            qrCodeSuccessCallback
+        ).then(() => {
+            document.getElementById("reader").style.display = "block";
+            startScanBtn.style.display = "none";
+        }).catch(err => {
+            console.error("Error while starting the scanner:", err);
+        });
+    }
+
+    // Handle file upload for image-based QR code
+    function handleFileUpload(file) {
+        console.log("File uploaded:", file);
+
+        // Create FormData to send the image to the server
+        let formData = new FormData();
+        formData.append("qrImage", file);
+
+        fetch('/Home/Index', {
+            method: 'POST',
+            body: formData
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log("Success:", data);
+                    if (data.redirectUrl) {
+                        console.log("Redirecting to URL:", data.redirectUrl);
+                        window.location.href = data.redirectUrl;
+                    } else {
+                        alert("QR Code Data: " + data.data);
+                    }
+                } else {
+                    console.error("Error:", data.message);
+                    alert("Error processing QR code: " + data.message);
+                }
+            })
+            .catch(err => {
+                console.error("Error uploading QR code image:", err);
+                alert("Error occurred while uploading QR code image.");
+            });
+    }
+
+    // Event listeners
+    startScanBtn.addEventListener("click", startScanner);
+
+    qrFileInput.addEventListener("change", function () {
+        const file = this.files[0];
+        if (file) {
+            handleFileUpload(file);
+        }
+    });
+</script>
